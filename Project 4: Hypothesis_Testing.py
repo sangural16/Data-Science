@@ -41,3 +41,19 @@ def get_list_of_university_towns():
 
 
 
+
+def get_recession_start():
+    '''Returns the year and quarter of the recession start time as a 
+    string value in a format such as 2005q3'''
+    
+    df = pd.read_excel('gdplev.xls',skiprows=219)
+    new_data = df[['1999q4',9926.1]]
+    new_data.columns = ['year', 'GDP']
+    
+    for i in range(2, len(df)):
+        if (new_data.iloc[i-2][1] > new_data.iloc[i-1][1]) and (new_data.iloc[i-1][1] > new_data.iloc[i][1]):
+            return new_data.iloc[i-2][0]
+
+
+
+
