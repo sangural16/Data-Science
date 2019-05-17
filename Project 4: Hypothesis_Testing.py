@@ -48,12 +48,123 @@ def get_recession_start():
     
     df = pd.read_excel('gdplev.xls',skiprows=219)
     new_data = df[['1999q4',9926.1]]
-    new_data.columns = ['year', 'GDP']
+    new_data.columns = ['quarter', 'GDP']
     
     for i in range(2, len(df)):
         if (new_data.iloc[i-2][1] > new_data.iloc[i-1][1]) and (new_data.iloc[i-1][1] > new_data.iloc[i][1]):
             return new_data.iloc[i-2][0]
 
+        
+        
+def get_recession_end():
+    '''Returns the year and quarter of the recession end time as a 
+    string value in a format such as 2005q3'''
+    
+    df = pd.read_excel('gdplev.xls',skiprows=219)
+    new_data = df[['1999q4',9926.1]]
+    new_data.columns = ['quarter', 'GDP']
+    
+    point_start = get_recession_start()
+    
+    start_index = new_data[new_data['quarter'] == point_start].index.tolist()[0]
+    
+    new_data=new_data.iloc[start_index:]
+    for i in range(2, len(new_data)):
+        if (new_data.iloc[i-2][1] < new_data.iloc[i-1][1]) and (new_data.iloc[i-1][1] < new_data.iloc[i][1]):
+            return new_data.iloc[i][0]
+
+        
+        
+        
+def get_recession_bottom():
+    '''Returns the year and quarter of the recession bottom time as a 
+    string value in a format such as 2005q3'''
+    
+    df = pd.read_excel('gdplev.xls',skiprows=219)
+    new_data = df[['1999q4',9926.1]]
+    new_data.columns = ['quarter', 'GDP']
+    
+    rec_start = new_data.index[new_data['quarter'] == get_recession_start()][0]
+    rec_end = new_data.index[new_data['quarter'] == get_recession_end()][0]
+    
+    return new_data.iloc[new_data.iloc[rec_start:rec_end+1, 1 ].idxmin(), 0]
+
+
+
+def convert_housing_data_to_quarters():
+    '''Converts the housing data to quarters and returns it as mean 
+    values in a dataframe. This dataframe should be a dataframe with
+    columns for 2000q1 through 2016q3, and should have a multi-index
+    in the shape of ["State","RegionName"].
+    
+    Note: Quarters are defined in the assignment description, they are
+    not arbitrary three month periods.
+    
+    The resulting dataframe should have 67 columns, and 10,730 rows.
+    '''
+    df = pd.read_csv('City_Zhvi_AllHomes.csv')
+    df['State'] = df['State'].map(states)
+    df.set_index(['State', 'RegionName'], inplace=True)
+    df = df.loc[:, '2000-01': ]
+
+    new_columns = [str(x)+y for x in range(2000, 2017) for y in ['q1', 'q2', 'q3', 'q4']]
+    new_columns = new_columns[:-1] # drop the last quarter of 2016
+
+    x = 0
+
+    for c in new_columns:
+        df[c] = df.iloc[:, x:x+3].mean(axis=1)
+        x = x+3
+
+    df = df.loc[:, '2000q1':]
+
+
+    return df
+
+
+
+import pandas as pd
+import numpy as np
+from scipy.stats import ttest_ind
+
+
+def run_ttest():
+    
+    '''First creates new data showing the decline or growth of housing prices
+    between the recession start and the recession bottom. Then runs a ttest
+    comparing the university town values to the non-university towns values, 
+    return whether the alternative hypothesis (that the two groups are the same)
+    is true or not as well as the p-value of the confidence. 
+    
+    Return the tuple (different, p, better) where different=True if the t-test is
+    True at a p<0.01 (we reject the null hypothesis), or different=False if 
+    otherwise (we cannot reject the null hypothesis). The variable p should
+    be equal to the exact p value returned from scipy.stats.ttest_ind(). The
+    value for better should be either "university town" or "non-university town"
+    depending on which has a lower mean price ratio (which is equivilent to a
+    reduced market loss).'''
+    
+    df = get_list_of_university_towns()
+    start = get_recession_start()
+    end = get_recession_end()
+    low = get_recession_bottom()
+    house = convert_housing_data_to_quarters()
+    
+
+    prices_begin = house[start]
+    prices_end = house[end]
+    ratio = prices_begin.divide(prices_end)
+        
+    ratio_college = ratio[list(df.index)].dropna()
+    ratio_not_college_indices = set(house.index) - set(ratio_college.index)
+    ratio_not_college = ratio.loc[list(ratio_not_college_indices)].dropna()
+        statistic, p_value = tuple(ttest_ind(ratio_college, ratio_not_college))
+    
+    outcome = statistic < 0
+    different = p_value < 0.01
+    better = ["non-university town", "university town"]
+    
+    return (different, p_value, better[outcome])
 
 
 
