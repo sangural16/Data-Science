@@ -144,27 +144,29 @@ def run_ttest():
     depending on which has a lower mean price ratio (which is equivilent to a
     reduced market loss).'''
     
-    df = get_list_of_university_towns()
     start = get_recession_start()
-    end = get_recession_end()
-    low = get_recession_bottom()
-    house = convert_housing_data_to_quarters()
+    bottom = get_recession_bottom()
+    housing_data = convert_housing_data_to_quarters()
+    housing_data = housing_data.loc[:, start: bottom]
+    housing_data.reset_index(inplace=True)
     
+    
+    housing_data['price_ratio'] = (housing_data[start] - housing_data[bottom]) / housing_data[start]
+    
+    uni_towns = get_list_of_university_towns()  
+    uni_town_list = uni_towns['RegionName'].tolist()
+    
+    housing_data['isUniTown'] = housing_data.RegionName.apply(lambda x: x in uni_town_list)
+    
+    uni_data = housing_data[housing_data.isUniTown].copy().dropna()
+    not_uni_data = housing_data[~housing_data.isUniTown].copy().dropna()
 
-    prices_begin = house[start]
-    prices_end = house[end]
-    ratio = prices_begin.divide(prices_end)
-        
-    ratio_college = ratio[list(df.index)].dropna()
-    ratio_not_college_indices = set(house.index) - set(ratio_college.index)
-    ratio_not_college = ratio.loc[list(ratio_not_college_indices)].dropna()
-        statistic, p_value = tuple(ttest_ind(ratio_college, ratio_not_college))
+    p = ttest_ind(uni_data['price_ratio'], not_uni_data['price_ratio'])[1]
+    different = p < 0.01   
     
-    outcome = statistic < 0
-    different = p_value < 0.01
-    better = ["non-university town", "university town"]
-    
-    return (different, p_value, better[outcome])
+    lower = 'university town' if uni_data['price_ratio'].mean() < not_uni_data['price_ratio'].mean() else 'non-university town'
+
+    return (different, p, lower)
 
 
 
