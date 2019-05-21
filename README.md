@@ -1,3 +1,3 @@
-# Data-Science
+# Hypothesis Testing
 
-Data Science in Python
+Uses statistics tools to test hypothesis on a given data. 
